@@ -14,7 +14,7 @@ on:
 
 jobs:
   install:
-    runs-on: [self-hosted]  # Using our own self hosted runner
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -56,11 +56,11 @@ jobs:
         shell: bash
         run: |
           # Replace content of line 2 with the new node1 IP and credentials
-          #sed -i '2s/.*/node1 ansible_host=localhost ansible_user=rishi ansible_password=redhat ansible_sudo_pass=redhat/' hosts.ini
+          sed -i '2s/.*/node1 ansible_host=localhost ansible_user=rishi ansible_password=redhat ansible_sudo_pass=redhat/' hosts.ini
 
-          ##sed -i '3s/^/#/' hosts.ini
-          #sed -i '10s/^/#/' hosts.ini
-          #sed -i '11s/^/#/' hosts.ini
+          sed -i '3s/^/#/' hosts.ini
+          sed -i '10s/^/#/' hosts.ini
+          sed -i '11s/^/#/' hosts.ini
 
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
