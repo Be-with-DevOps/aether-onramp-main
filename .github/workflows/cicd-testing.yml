@@ -64,6 +64,11 @@ jobs:
           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
           cd aether-onramp
 
+      - name: Interface name of the system
+        run: |
+           sed -i "s/^data_iface: ens18$/data_iface: ens18/" vars/main.yml
+           sed -i "s/^amf:\n   ip: .*/amf:\n   ip: \"${SERVER_IP}\"/" vars/main.yml
+
       - name: Set up SSH Key
         uses: webfactory/ssh-agent@v0.5.3
         with:
