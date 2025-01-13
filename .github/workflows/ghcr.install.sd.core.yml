@@ -6,7 +6,7 @@ on:
       server_ip:
         description: 'The server IP address'
         required: true
-        default: '172.105.57.206'
+        default: '172.31.33.254'
       branch_name:
         description: 'The branch name to use'
         required: true
@@ -24,6 +24,16 @@ jobs:
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
+
+      - name: Prerequisites environment
+        run: |
+          sudo ufw status
+          systemctl status systemd-networkd.service 
+
+      - name: Installation of Aether OnRamp
+        run: |
+           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
+           cd aether-onramp
 
       - name: Install Prerequisites
         run: |
@@ -55,6 +65,11 @@ jobs:
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
+
+      - name: Set up network variables
+        run: |
+          echo "DATA_IFACE=ens18" >> $GITHUB_ENV
+          echo "AMF_IP=172.31.33.254" >> $GITHUB_ENV
 
       - name: Set up Docker authentication for GHCR
         run: |
