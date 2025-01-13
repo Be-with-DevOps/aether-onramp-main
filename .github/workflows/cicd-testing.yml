@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           # Replace content of line 2 with the new node1 IP and credentials
-          sed -i '2s/.*/node1 ansible_host=172.31.33.254 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
+          sed -i '2s/.*/node1 ansible_host=172.31.33.254 ansible_user=ansible ansible_password=ansible ansible_sudo_pass=ansible ansible_ssh_private_key_file=PRIVATE_KEY/' hosts.ini
           sed -i '3s/^/#/' hosts.ini
           sed -i '10s/^/#/' hosts.ini
           sed -i '11s/^/#/' hosts.ini
