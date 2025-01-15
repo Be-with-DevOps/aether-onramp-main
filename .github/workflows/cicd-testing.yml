@@ -20,10 +20,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
+      - name: Trigger Jenkins Parameterized Job
+        run: |
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="ABot-SDCORE-CI-Pipeline"
+          USERNAME="admin"
+          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+
       - name: Set Up Variables
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
+          
       - name: Remove Conflicting Packages
         run: |
           sudo apt-get remove --purge -y containerd
@@ -64,10 +73,10 @@ jobs:
           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
           cd aether-onramp
 
-      - name: Interface name of the system
+      - name: Set up network variables
         run: |
-           sed -i "s/^data_iface: ens18$/data_iface: ens18/" vars/main.yml
-           sed -i "s/^amf:\n   ip: .*/amf:\n   ip: \"${SERVER_IP}\"/" vars/main.yml
+          echo "DATA_IFACE=ens18" >> $GITHUB_ENV
+          echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
 
       - name: Set up SSH Key
         uses: webfactory/ssh-agent@v0.5.3
