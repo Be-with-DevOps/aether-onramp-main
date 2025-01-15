@@ -47,6 +47,14 @@ jobs:
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
 
+          # Fetch Jenkins crumb
+          CRUMB=$(curl -s -u "$USERNAME:$TOKEN" "$JENKINS_URL/crumbIssuer/api/json" | jq -r '.crumb')
+
+          if [ -z "$CRUMB" ]; then
+             echo "Failed to fetch Jenkins crumb. Ensure your credentials are correct."
+             exit 1
+          fi
+
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
                 -i)
