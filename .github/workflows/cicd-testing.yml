@@ -46,6 +46,7 @@ jobs:
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
+          sudo apt-get install -y jq
 
           # Fetch Jenkins crumb
           CRUMB=$(curl -s -u "$USERNAME:$TOKEN" "$JENKINS_URL/crumbIssuer/api/json" | jq -r '.crumb')
