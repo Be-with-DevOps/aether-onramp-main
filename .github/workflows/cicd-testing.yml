@@ -46,10 +46,6 @@ jobs:
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
-          sudo apt-get install -y jq
-
-         
-
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
                 -i)
