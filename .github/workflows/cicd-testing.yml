@@ -22,7 +22,7 @@ on:
 
 jobs:
   install:
-    runs-on: self-hosted
+    runs-on: [self-hosted]
  
 
     steps:
