@@ -126,4 +126,35 @@ jobs:
         run: |
           make aether-5gc-install  # Running from repo home
           kubectl get pods -n omec
+          
+      # Validation step(whether the deployment and installation of the SD-Core 5G application on a specified server are successful)
+      - name: Validate Kubernetes Pods
+        run: |
+          kubectl get pods -n omec
+          kubectl wait --for=condition=Ready pods --all -n omec --timeout=300s
+          NOT_READY=$(kubectl get pods -n omec --no-headers | grep -v Running | wc -l)
+          if [ "$NOT_READY" -ne "0" ]; then
+            echo "Some pods are not running or ready."
+            exit 1
+          fi
+          echo "All pods in the omec namespace are running and ready."
+
+      - name: Test Application Endpoints
+        run: |
+          AMF_ENDPOINT="http://${{ github.event.inputs.server_ip }}:${{ github.event.inputs.port }}/amf"
+          curl -f $AMF_ENDPOINT || { echo "AMF endpoint is not accessible."; exit 1; }
+          echo "AMF endpoint is accessible."
+
+      - name: Inspect Pod Logs
+        run: |
+          PODS=$(kubectl get pods -n omec --no-headers -o custom-columns=":metadata.name")
+          for POD in $PODS; do
+            echo "Checking logs for pod: $POD"
+            kubectl logs $POD -n omec | grep -i error && { echo "Errors found in logs of pod $POD"; exit 1; }
+          done
+          echo "No errors found in pod logs."
+
+      - name: Final Status Check
+        run: |
+          echo "SD-Core 5G deployment and installation completed successfully!"
     
