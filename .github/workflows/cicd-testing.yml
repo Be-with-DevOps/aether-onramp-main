@@ -7,7 +7,7 @@ on:
         description: 'The server IP address'
         required: true
         default: '10.176.27.188'
-      port: 
+      port:
         description: "The port to deploy the application on 8080"
         required: true
         default: "8080"
@@ -15,48 +15,51 @@ on:
         description: 'The branch name to use'
         required: true
         default: 'main'
+      job_name:
+        description: "The Jenkins job to trigger (e.g., smoke_test, sanity_test)"
+        required: true
+        default: 'smoke_test'
 
 jobs:
   install:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Set Up Variables 
+      - name: Set Up Variables
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
+          echo "JOB_NAME=${{ github.event.inputs.job_name }}" >> $GITHUB_ENV
 
       - name: Trigger Jenkins Parameterized Job
         run: |
-         set -e
-         JENKINS_URL="http://10.176.27.188:8080/"
-         JOB_NAME="ABot-SDCORE-CI-Pipeline"
-         USERNAME="admin"
-         TOKEN="${{ secrets.JENKINS_TOKEN }}"
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="${{ github.event.inputs.job_name }}"
+          USERNAME="admin"
+          TOKEN="${{ secrets.JENKINS_TOKEN }}"
 
-         SERVER_IP_ENCODED=$(echo ${{ github.event.inputs.server_ip }} | jq -s -R -r @uri)
-         PORT_ENCODED=$(echo ${{ github.event.inputs.port }} | jq -s -R -r @uri)
-         BRANCH_NAME_ENCODED=$(echo ${{ github.event.inputs.branch_name }} | jq -s -R -r @uri)
+          SERVER_IP_ENCODED=$(echo ${{ github.event.inputs.server_ip }} | jq -s -R -r @uri)
+          PORT_ENCODED=$(echo ${{ github.event.inputs.port }} | jq -s -R -r @uri)
+          BRANCH_NAME_ENCODED=$(echo ${{ github.event.inputs.branch_name }} | jq -s -R -r @uri)
 
-         TRIGGER_RESPONSE=$(curl -X POST -u $USERNAME:$TOKEN \
-          "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
-          -D - -o /dev/null)
+          TRIGGER_RESPONSE=$(curl -X POST -u $USERNAME:$TOKEN \
+            "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
+            -D - -o /dev/null)
 
-         QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
+          QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
 
-         if [ -z "$QUEUE_URL" ]; then
-          echo "Failed to trigger Jenkins job. Queue URL not found."
-          exit 1
-         fi
+          if [ -z "$QUEUE_URL" ]; then
+            echo "Failed to trigger Jenkins job. Queue URL not found."
+            exit 1
+          fi
 
-         echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
-         echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
+          echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
+          echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
 
-          
-          
       - name: Remove Conflicting Packages
         run: |
           sudo apt-get remove --purge -y containerd
@@ -91,7 +94,7 @@ jobs:
           echo "Current PATH: $PATH"
           which sed || echo "sed not found"
           ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
-          
+
       - name: Installation of Aether OnRamp
         run: |
           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
@@ -109,24 +112,23 @@ jobs:
           sed -i '2s/.*/node1 ansible_host=10.176.27.188 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
           sed -i '3s/^/#/' hosts.ini
           sed -i '10s/^/#/' hosts.ini
-          #sed -i '11s/^/#/' hosts.ini
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
       - name: Set up Docker authentication for GHCR
         run: |
           sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
-          
+
       - name: Install Kubernetes
-        shell: bash 
+        shell: bash
         run: |
           make aether-k8s-install  # Running from repo home
-        
+
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
           kubectl get pods -n omec
-          
+
       # Validation step(whether the deployment and installation of the SD-Core 5G application on a specified server are successful)
       - name: Validate Kubernetes Pods
         run: |
@@ -157,4 +159,3 @@ jobs:
       - name: Final Status Check
         run: |
           echo "SD-Core 5G deployment and installation completed successfully!"
-    
