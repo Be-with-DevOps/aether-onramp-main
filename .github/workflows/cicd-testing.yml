@@ -43,9 +43,9 @@ jobs:
           USERNAME="admin"
           TOKEN="${{ secrets.JENKINS_TOKEN }}"
 
-          SERVER_IP_ENCODED=$(echo ${{ github.event.inputs.server_ip }} | jq -s -R -r @uri)
-          PORT_ENCODED=$(echo ${{ github.event.inputs.port }} | jq -s -R -r @uri)
-          BRANCH_NAME_ENCODED=$(echo ${{ github.event.inputs.branch_name }} | jq -s -R -r @uri)
+          SERVER_IP_ENCODED=$(echo ${{ github.event.inputs.server_ip }} 
+          PORT_ENCODED=$(echo ${{ github.event.inputs.port }} 
+          BRANCH_NAME_ENCODED=$(echo ${{ github.event.inputs.branch_name }} 
 
           TRIGGER_RESPONSE=$(curl -X POST -u $USERNAME:$TOKEN \
             "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
