@@ -23,6 +23,7 @@ on:
 jobs:
   install:
     runs-on: self-hosted
+ 
 
     steps:
       - name: Checkout Code
