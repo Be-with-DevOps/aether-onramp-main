@@ -51,15 +51,14 @@ jobs:
 
       - name: Fetch Jenkins Crumb
         run: |
-          # Fetch the Jenkins crumb
-          CRUMB=$(curl -u $USERNAME:$TOKEN -s "http://$JENKINS_URL/crumbIssuer/api/json" | jq -r '.crumb')
-          
+          CRUMB=$(curl -u $USERNAME:$TOKEN -s "http://$JENKINS_URL/crumbIssuer/api/json" | grep -o '"crumb":"[^"]*' | sed 's/"crumb":"//')
+    
           # Check if the crumb was fetched successfully
           if [ -z "$CRUMB" ]; then
-            echo "Failed to get Jenkins crumb"
-            exit 1
+           echo "Failed to get Jenkins crumb"
+           exit 1
           fi
-          
+    
           echo "CRUMB=$CRUMB" >> $GITHUB_ENV
 
       - name: Trigger Jenkins Parameterized Job
