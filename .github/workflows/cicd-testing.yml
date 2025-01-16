@@ -41,6 +41,11 @@ jobs:
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
 
+      - name: Install xmllint
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libxml2-utils
+
       # Step to Fetch Jenkins Crumb
       - name: Fetch Jenkins Crumb
         id: fetch_crumb
