@@ -46,7 +46,7 @@ jobs:
           JENKINS_URL="http://10.176.27.188:8080/"
           JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
-          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+          
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }}
           PORT_ENCODED=${{ github.event.inputs.port }}
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
