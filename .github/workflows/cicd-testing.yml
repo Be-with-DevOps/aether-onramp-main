@@ -41,10 +41,13 @@ jobs:
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
 
-      - name: Install jq
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y jq
+      - name: Cache jq installation
+        uses: actions/cache@v2
+        with:
+          path: /usr/bin/jq
+          key: ${{ runner.os }}-jq-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-jq-
 
       - name: Fetch Jenkins Crumb
         run: |
