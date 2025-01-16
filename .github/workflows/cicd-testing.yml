@@ -15,15 +15,14 @@ on:
         description: 'The branch name to use'
         required: true
         default: 'main'
-      job_name:
-        description: "The Jenkins job to trigger (e.g., smoke_test, sanity_test)"
+      job_names:
+        description: "Comma-separated list of Jenkins jobs to trigger (e.g., smoke_test, sanity_test)"
         required: true
         default: 'smoke_test'
 
 jobs:
   install:
     runs-on: ubuntu-latest
- 
 
     steps:
       - name: Checkout Code
@@ -33,38 +32,46 @@ jobs:
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
-          echo "JOB_NAME=${{ github.event.inputs.job_name }}" >> $GITHUB_ENV
-      - name: Trigger Jenkins Parameterized Job
+          echo "JOB_NAMES=${{ github.event.inputs.job_names }}" >> $GITHUB_ENV
+
+      - name: Trigger Jenkins Parameterized Jobs
         run: |
           set -e
           JENKINS_URL="http://54.235.39.85:8080/"
-          JOB_NAME="pipeline1"
           USERNAME="admin"
           TOKEN="11e6b15f49419a8c6b8b202f6f33a5fb15"
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
-          TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
-               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
+
+          # Split job names and trigger each job
+          IFS=',' read -r -a JOB_ARRAY <<< "${{ github.event.inputs.job_names }}"
+          for JOB_NAME in "${JOB_ARRAY[@]}"; do
+            TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
+                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
                 -i)
-          echo "Full response from Jenkins: $TRIGGER_RESPONSE"
-          QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
-          if [ -z "$QUEUE_URL" ]; then
-            echo "Failed to trigger Jenkins job. Queue URL not found."
-            exit 1
-          fi
-          echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
-          echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
+            echo "Full response from Jenkins: $TRIGGER_RESPONSE"
+            QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
+            if [ -z "$QUEUE_URL" ]; then
+              echo "Failed to trigger Jenkins job $JOB_NAME. Queue URL not found."
+              exit 1
+            fi
+            echo "Triggered Jenkins job $JOB_NAME. Queue URL: $QUEUE_URL"
+          done
+          echo "All requested Jenkins jobs have been triggered."
+
       - name: Remove Conflicting Packages
         run: |
           sudo apt-get remove --purge -y containerd
           sudo apt-get autoremove -y
           sudo apt-mark unhold containerd || true  # Ensure no held packages
           sudo apt-get update -y
+
       - name: Prerequisites environment
         run: |
-           sudo ufw status
-           systemctl status systemd-networkd.service
+          sudo ufw status
+          systemctl status systemd-networkd.service
+
       - name: Install Prerequisites
         run: |
           if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
@@ -82,19 +89,23 @@ jobs:
           make --version  # Verify make installation
           echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
           source $GITHUB_ENV  # Ensure new PATH is applied
+
       - name: Debug PATH and Installed Tools
         run: |
           echo "Current PATH: $PATH"
           which sed || echo "sed not found"
           ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
+
       - name: Installation of Aether OnRamp
         run: |
           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
           cd aether-onramp
+
       - name: Set up network variables
         run: |
           echo "DATA_IFACE=ens18" >> $GITHUB_ENV
           echo "AMF_IP=54.235.39.85" >> $GITHUB_ENV
+
       - name: Update Configuration Files
         shell: bash
         run: |
@@ -105,17 +116,21 @@ jobs:
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
+
       - name: Set up Docker authentication for GHCR
         run: |
           sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
+
       - name: Install Kubernetes
         shell: bash
         run: |
           make aether-k8s-install  # Running from repo home
+
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
           kubectl get pods -n omec
+
       # Validation step(whether the deployment and installation of the SD-Core 5G application on a specified server are successful)
       - name: Validate Kubernetes Pods
         run: |
@@ -127,11 +142,13 @@ jobs:
             exit 1
           fi
           echo "All pods in the omec namespace are running and ready."
+
       - name: Test Application Endpoints
         run: |
           AMF_ENDPOINT="http://${{ github.event.inputs.server_ip }}:${{ github.event.inputs.port }}/amf"
           curl -f $AMF_ENDPOINT || { echo "AMF endpoint is not accessible."; exit 1; }
           echo "AMF endpoint is accessible."
+
       - name: Inspect Pod Logs
         run: |
           PODS=$(kubectl get pods -n omec --no-headers -o custom-columns=":metadata.name")
@@ -140,6 +157,7 @@ jobs:
             kubectl logs $POD -n omec | grep -i error && { echo "Errors found in logs of pod $POD"; exit 1; }
           done
           echo "No errors found in pod logs."
+
       - name: Final Status Check
         run: |
           echo "SD-Core 5G deployment and installation completed successfully!"
