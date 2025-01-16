@@ -6,7 +6,7 @@ on:
       server_ip:
         description: 'The server IP address'
         required: true
-        default: '10.176.27.188'
+        default: '54.235.39.85'
       port:
         description: "The port to deploy the application on 8080"
         required: true
@@ -22,7 +22,7 @@ on:
 
 jobs:
   install:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
  
 
     steps:
@@ -38,10 +38,10 @@ jobs:
       - name: Trigger Jenkins Parameterized Job
         run: |
           set -e
-          JENKINS_URL="http://10.176.27.188:8080/"
-          JOB_NAME="ABot-SDCORE-CI-Pipeline"
+          JENKINS_URL="http://54.235.39.85:8080/"
+          JOB_NAME="pipeline1"
           USERNAME="admin"
-          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+          TOKEN="11c81391b08c133a90da2b9fb05b96f567"
 
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
@@ -104,13 +104,13 @@ jobs:
       - name: Set up network variables
         run: |
           echo "DATA_IFACE=ens18" >> $GITHUB_ENV
-          echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
+          echo "AMF_IP=54.235.39.85" >> $GITHUB_ENV
 
       - name: Update Configuration Files
         shell: bash
         run: |
           # Replace content of line 2 with the new node1 IP and credentials
-          sed -i '2s/.*/node1 ansible_host=10.176.27.188 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
+          sed -i '2s/.*/node1 ansible_host=54.235.39.85 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
           sed -i '3s/^/#/' hosts.ini
           sed -i '10s/^/#/' hosts.ini
           # Verify the updated hosts.ini content
