@@ -103,7 +103,7 @@ jobs:
       - name: Set up network variables
         run: |
           echo "DATA_IFACE=ens18" >> $GITHUB_ENV
-          echo "AMF_IP=54.235.39.85" >> $GITHUB_ENV
+          echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
       - name: Update Configuration Files
         shell: bash
         run: |
