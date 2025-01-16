@@ -15,10 +15,16 @@ on:
         description: 'The branch name to use'
         required: true
         default: 'main'
-      job_names:
-        description: "Comma-separated list of Jenkins jobs to trigger (e.g., smoke_test, sanity_test)"
+      smoke_test:
+        description: 'Run Smoke Test'
         required: true
-        default: 'smoke_test'
+        default: 'true'
+        type: boolean
+      sanity_test:
+        description: 'Run Sanity Test'
+        required: true
+        default: 'true'
+        type: boolean
 
 jobs:
   install:
@@ -32,33 +38,33 @@ jobs:
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
-          echo "JOB_NAMES=${{ github.event.inputs.job_names }}" >> $GITHUB_ENV
+          echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
+          echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
 
-      - name: Trigger Jenkins Parameterized Jobs
+      - name: Trigger Jenkins Parameterized Job
         run: |
           set -e
           JENKINS_URL="http://54.235.39.85:8080/"
+          JOB_NAME="pipeline1"
           USERNAME="admin"
           TOKEN="11e6b15f49419a8c6b8b202f6f33a5fb15"
-          SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
-          PORT_ENCODED=${{ github.event.inputs.port }} 
-          BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
-
-          # Split job names and trigger each job
-          IFS=',' read -r -a JOB_ARRAY <<< "${{ github.event.inputs.job_names }}"
-          for JOB_NAME in "${JOB_ARRAY[@]}"; do
-            TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
-                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
+          SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }}
+          PORT_ENCODED=${{ github.event.inputs.port }}
+          BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
+          SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
+          SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
+          
+          TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
+               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
                 -i)
-            echo "Full response from Jenkins: $TRIGGER_RESPONSE"
-            QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
-            if [ -z "$QUEUE_URL" ]; then
-              echo "Failed to trigger Jenkins job $JOB_NAME. Queue URL not found."
-              exit 1
-            fi
-            echo "Triggered Jenkins job $JOB_NAME. Queue URL: $QUEUE_URL"
-          done
-          echo "All requested Jenkins jobs have been triggered."
+          echo "Full response from Jenkins: $TRIGGER_RESPONSE"
+          QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
+          if [ -z "$QUEUE_URL" ]; then
+            echo "Failed to trigger Jenkins job. Queue URL not found."
+            exit 1
+          fi
+          echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
+          echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
 
       - name: Remove Conflicting Packages
         run: |
@@ -69,8 +75,8 @@ jobs:
 
       - name: Prerequisites environment
         run: |
-          sudo ufw status
-          systemctl status systemd-networkd.service
+           sudo ufw status
+           systemctl status systemd-networkd.service
 
       - name: Install Prerequisites
         run: |
