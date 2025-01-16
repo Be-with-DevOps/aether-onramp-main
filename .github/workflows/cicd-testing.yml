@@ -51,23 +51,24 @@ jobs:
 
       - name: Fetch Jenkins Crumb
         run: |
-         echo "Using Jenkins URL: $JENKINS_URL"
-         echo "Using Jenkins Username: $USERNAME"
-         if command -v jq &> /dev/null; then
-          echo "Using jq to fetch crumb..."
-          CRUMB=$(curl -u $USERNAME:$TOKEN -s "http://$JENKINS_URL/crumbIssuer/api/json" | jq -r '.crumb')
-         else
-           echo "jq not found, falling back to grep..."
-           CRUMB=$(curl -u $USERNAME:$TOKEN -s "http://$JENKINS_URL/crumbIssuer/api/json" | grep -o '"crumb":"[^"]*' | sed 's/"crumb":"//')
-         fi
-         if [ -z "$CRUMB" ]; then
-          echo "Failed to get Jenkins crumb"
-          exit 1
-         else
-          echo "Successfully retrieved Jenkins crumb: $CRUMB"
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          USERNAME="admin"
+          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+
+          if command -v jq &> /dev/null; then
+            CRUMB=$(curl -u $USERNAME:$TOKEN -s "${JENKINS_URL}crumbIssuer/api/json" | jq -r '.crumb')
+          else
+            CRUMB=$(curl -u $USERNAME:$TOKEN -s "${JENKINS_URL}crumbIssuer/api/json" | grep -o '"crumb":"[^"]*' | sed 's/"crumb":"//')
+          fi
+
+          if [ -z "$CRUMB" ]; then
+            echo "Failed to fetch Jenkins crumb."
+            exit 1
+          fi
+
           echo "CRUMB=$CRUMB" >> $GITHUB_ENV
-         fi
-     
+          echo "Jenkins crumb fetched successfully."
 
       - name: Trigger Jenkins Parameterized Job
         run: |
@@ -81,9 +82,9 @@ jobs:
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
           SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
           SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
-          
-          TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
-               -H "Jenkins-Crumb: $CRUMB" \
+
+          TRIGGER_RESPONSE=$(curl -X POST -u $USERNAME:$TOKEN \
+               -H "Jenkins-Crumb:$CRUMB" \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
                 -i)
           echo "Full response from Jenkins: $TRIGGER_RESPONSE"
