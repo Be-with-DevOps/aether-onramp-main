@@ -40,7 +40,24 @@ jobs:
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
-      - name: Trigger Jenkins Parameterized Job
+
+      # Step to Fetch Jenkins Crumb
+      - name: Fetch Jenkins Crumb
+        id: fetch_crumb
+        run: |
+          JENKINS_URL="http://10.176.27.188:8080/"
+          USERNAME="admin"
+          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+          
+          # Fetch the crumb from Jenkins
+          CRUMB=$(curl -s -u $USERNAME:$TOKEN "${JENKINS_URL}crumbIssuer/api/xml" | xmllint --xpath "concat(//crumbRequestField,\":\",//crumb)" -)
+          echo "Crumb: $CRUMB"
+          
+          # Set the crumb as an environment variable
+          echo "CRUMB=$CRUMB" >> $GITHUB_ENV
+
+      # Step to Trigger Jenkins Job with Parameters
+      - name: Trigger Jenkins Job
         run: |
           set -e
           JENKINS_URL="http://10.176.27.188:8080/"
@@ -53,9 +70,11 @@ jobs:
           SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
           SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
           
+          # Trigger Jenkins job with the crumb and parameters
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
+               -H "${CRUMB}" \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
-                -i)
+               -i)
           echo "Full response from Jenkins: $TRIGGER_RESPONSE"
           QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
           if [ -z "$QUEUE_URL" ]; then
@@ -64,16 +83,19 @@ jobs:
           fi
           echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
           echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
+
       - name: Remove Conflicting Packages
         run: |
           sudo apt-get remove --purge -y containerd
           sudo apt-get autoremove -y
           sudo apt-mark unhold containerd || true  # Ensure no held packages
           sudo apt-get update -y
+
       - name: Prerequisites environment
         run: |
            sudo ufw status
            systemctl status systemd-networkd.service
+
       - name: Install Prerequisites
         run: |
           if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
@@ -91,19 +113,23 @@ jobs:
           make --version  # Verify make installation
           echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
           source $GITHUB_ENV  # Ensure new PATH is applied
+
       - name: Debug PATH and Installed Tools
         run: |
           echo "Current PATH: $PATH"
           which sed || echo "sed not found"
           ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
+
       - name: Installation of Aether OnRamp
         run: |
           git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
           cd aether-onramp
+
       - name: Set up network variables
         run: |
           echo "DATA_IFACE=ens18" >> $GITHUB_ENV
           echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
+
       - name: Update Configuration Files
         shell: bash
         run: |
@@ -114,17 +140,21 @@ jobs:
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
+
       - name: Set up Docker authentication for GHCR
         run: |
           sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
+
       - name: Install Kubernetes
         shell: bash
         run: |
           make aether-k8s-install  # Running from repo home
+
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
           kubectl get pods -n omec
+
       # Validation step(whether the deployment and installation of the SD-Core 5G application on a specified server are successful)
       - name: Validate Kubernetes Pods
         run: |
@@ -136,11 +166,13 @@ jobs:
             exit 1
           fi
           echo "All pods in the omec namespace are running and ready."
+
       - name: Test Application Endpoints
         run: |
           AMF_ENDPOINT="http://${{ github.event.inputs.server_ip }}:${{ github.event.inputs.port }}/amf"
           curl -f $AMF_ENDPOINT || { echo "AMF endpoint is not accessible."; exit 1; }
           echo "AMF endpoint is accessible."
+
       - name: Inspect Pod Logs
         run: |
           PODS=$(kubectl get pods -n omec --no-headers -o custom-columns=":metadata.name")
@@ -149,6 +181,7 @@ jobs:
             kubectl logs $POD -n omec | grep -i error && { echo "Errors found in logs of pod $POD"; exit 1; }
           done
           echo "No errors found in pod logs."
+
       - name: Final Status Check
         run: |
           echo "SD-Core 5G deployment and installation completed successfully!"
