@@ -41,28 +41,25 @@ jobs:
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
 
-      - name: Install xmllint
+      - name: Install jq
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y libxml2-utils
+          sudo apt-get install -y jq
 
-      # Step to Fetch Jenkins Crumb
       - name: Fetch Jenkins Crumb
-        id: fetch_crumb
         run: |
-          JENKINS_URL="http://10.176.27.188:8080/"
-          USERNAME="admin"
-          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+          # Fetch the Jenkins crumb
+          CRUMB=$(curl -u $USERNAME:$TOKEN -s "http://$JENKINS_URL/crumbIssuer/api/json" | jq -r '.crumb')
           
-          # Fetch the crumb from Jenkins
-          CRUMB=$(curl -s -u $USERNAME:$TOKEN "${JENKINS_URL}crumbIssuer/api/xml" | xmllint --xpath "concat(//crumbRequestField,\":\",//crumb)" -)
-          echo "Crumb: $CRUMB"
+          # Check if the crumb was fetched successfully
+          if [ -z "$CRUMB" ]; then
+            echo "Failed to get Jenkins crumb"
+            exit 1
+          fi
           
-          # Set the crumb as an environment variable
           echo "CRUMB=$CRUMB" >> $GITHUB_ENV
 
-      # Step to Trigger Jenkins Job with Parameters
-      - name: Trigger Jenkins Job
+      - name: Trigger Jenkins Parameterized Job
         run: |
           set -e
           JENKINS_URL="http://10.176.27.188:8080/"
@@ -75,11 +72,10 @@ jobs:
           SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
           SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
           
-          # Trigger Jenkins job with the crumb and parameters
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
-               -H "${CRUMB}" \
+               -H "Jenkins-Crumb: $CRUMB" \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
-               -i)
+                -i)
           echo "Full response from Jenkins: $TRIGGER_RESPONSE"
           QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
           if [ -z "$QUEUE_URL" ]; then
