@@ -51,7 +51,9 @@ jobs:
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
-          
+          #install jq
+          sudo apt update
+          sudo apt install jq -y
           # Fetch the Jenkins crumb for CSRF protection
           CRUMB=$(curl -u $USERNAME:$TOKEN -X GET "${JENKINS_URL}crumbIssuer/api/json" | jq -r .crumb)
           if [ -z "$CRUMB" ]; then
