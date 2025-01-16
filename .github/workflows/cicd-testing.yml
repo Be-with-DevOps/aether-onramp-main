@@ -51,22 +51,27 @@ jobs:
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
-          #install jq
+
+          # Install jq for JSON parsing
           sudo apt update
           sudo apt install jq -y
+
           # Fetch the Jenkins crumb for CSRF protection
+          echo "Fetching Jenkins crumb..."
           CRUMB=$(curl -u $USERNAME:$TOKEN -X GET "${JENKINS_URL}crumbIssuer/api/json" | jq -r .crumb)
           if [ -z "$CRUMB" ]; then
             echo "Failed to retrieve CSRF crumb."
             exit 1
           fi
           
+          echo "Jenkins crumb fetched: $CRUMB"
+
           # Trigger the Jenkins job with the crumb included
-          TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
+          echo "Triggering Jenkins job..."
+          TRIGGER_RESPONSE=$(curl -X POST -u $USERNAME:$TOKEN \
                -H "Jenkins-Crumb: $CRUMB" \
-               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
-               -i)
-          echo "Full response from Jenkins: $TRIGGER_RESPONSE"
+               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}")
+          echo "Jenkins trigger response: $TRIGGER_RESPONSE"
           
           # Extract the queue URL from the response
           QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
@@ -179,3 +184,4 @@ jobs:
       - name: Final Status Check
         run: |
           echo "SD-Core 5G deployment and installation completed successfully!"
+
