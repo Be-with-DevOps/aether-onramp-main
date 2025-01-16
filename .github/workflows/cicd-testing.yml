@@ -6,7 +6,7 @@ on:
       server_ip:
         description: 'The server IP address'
         required: true
-        default: '54.235.39.85'
+        default: '10.176.27.188'
       port:
         description: "The port to deploy the application on 8080"
         required: true
@@ -44,25 +44,35 @@ jobs:
       - name: Trigger Jenkins Parameterized Job
         run: |
           set -e
-          JENKINS_URL="http://54.235.39.85:8080/"
-          JOB_NAME="pipeline1"
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
-          TOKEN="11e6b15f49419a8c6b8b202f6f33a5fb15"
-          SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }}
-          PORT_ENCODED=${{ github.event.inputs.port }}
-          BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
-          SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
-          SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
+          TOKEN="ce71fdbd78e446f98c038dbdc78e6619"
+          SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
+          PORT_ENCODED=${{ github.event.inputs.port }} 
+          BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
           
+          # Fetch the Jenkins crumb for CSRF protection
+          CRUMB=$(curl -u $USERNAME:$TOKEN -X GET "${JENKINS_URL}crumbIssuer/api/json" | jq -r .crumb)
+          if [ -z "$CRUMB" ]; then
+            echo "Failed to retrieve CSRF crumb."
+            exit 1
+          fi
+          
+          # Trigger the Jenkins job with the crumb included
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
-               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
-                -i)
+               -H "Jenkins-Crumb: $CRUMB" \
+               "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}" \
+               -i)
           echo "Full response from Jenkins: $TRIGGER_RESPONSE"
+          
+          # Extract the queue URL from the response
           QUEUE_URL=$(echo "$TRIGGER_RESPONSE" | grep -Fi Location | awk '{print $2}' | tr -d '\r')
           if [ -z "$QUEUE_URL" ]; then
             echo "Failed to trigger Jenkins job. Queue URL not found."
             exit 1
           fi
+          
           echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
           echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
 
@@ -110,13 +120,13 @@ jobs:
       - name: Set up network variables
         run: |
           echo "DATA_IFACE=ens18" >> $GITHUB_ENV
-          echo "AMF_IP=54.235.39.85" >> $GITHUB_ENV
+          echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
 
       - name: Update Configuration Files
         shell: bash
         run: |
           # Replace content of line 2 with the new node1 IP and credentials
-          sed -i '2s/.*/node1 ansible_host=54.235.39.85 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
+          sed -i '2s/.*/node1 ansible_host= 10.176.27.188 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
           sed -i '3s/^/#/' hosts.ini
           sed -i '10s/^/#/' hosts.ini
           # Verify the updated hosts.ini content
