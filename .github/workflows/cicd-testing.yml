@@ -40,7 +40,7 @@ jobs:
           JENKINS_URL="http://54.235.39.85:8080/"
           JOB_NAME="pipeline1"
           USERNAME="admin"
-          TOKEN="11c81391b08c133a90da2b9fb05b96f567"
+          TOKEN="11e6b15f49419a8c6b8b202f6f33a5fb15"
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }} 
           PORT_ENCODED=${{ github.event.inputs.port }} 
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }} 
