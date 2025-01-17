@@ -95,31 +95,29 @@ jobs:
           USERNAME="admin"
           TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
           QUEUE_URL="${{ env.queue_url }}"
-          # Check if jq is installed
-          if ! command -v jq &> /dev/null; then
-           echo "jq is not installed. Installing jq..."
-           sudo apt-get update && sudo apt-get install -y jq
-          fi
-          
           echo "Polling Jenkins queue to fetch build number..."
           BUILD_NUMBER="null"
+
           for i in {1..30}; do
-          # Use curl, grep, and sed to parse JSON
-            BUILD_NUMBER=$(curl -s -u $USERNAME:$TOKEN "${QUEUE_URL}api/json" | grep -o '"number":[0-9]*' | sed 's/"number"://')
-            if [ "$BUILD_NUMBER" != "null" ] && [ -n "$BUILD_NUMBER" ]; then
-             echo "Build number: $BUILD_NUMBER"
-             break
+          # Use curl and grep to extract build number
+            RESPONSE=$(curl -s -u $USERNAME:$TOKEN "${QUEUE_URL}api/json")
+            BUILD_NUMBER=$(echo "$RESPONSE" | grep -o '"number":[0-9]*' | awk -F':' '{print $2}')
+  
+            if [ -n "$BUILD_NUMBER" ] && [ "$BUILD_NUMBER" != "null" ]; then
+              echo "Build number: $BUILD_NUMBER"
+              break
             fi
+  
             echo "Waiting for build to be scheduled... Attempt: $i"
             sleep 5
-          done
+           done
 
-          if [ "$BUILD_NUMBER" == "null" ] || [ -z "$BUILD_NUMBER" ]; then
-            echo "Failed to retrieve the build number from Jenkins queue after multiple attempts."
-            exit 1
-          fi
+           if [ -z "$BUILD_NUMBER" ] || [ "$BUILD_NUMBER" == "null" ]; then
+             echo "Failed to retrieve the build number from Jenkins queue after multiple attempts."
+             exit 1
+           fi
 
-          echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
+           echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
 
       - name: Check Jenkins Job Status
         id: jenkins-status
