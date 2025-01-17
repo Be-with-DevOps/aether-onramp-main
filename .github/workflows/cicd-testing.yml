@@ -93,6 +93,11 @@ jobs:
           USERNAME="admin"
           TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
           QUEUE_URL="${{ env.queue_url }}"
+          # Check if jq is installed
+          if ! command -v jq &> /dev/null; then
+           echo "jq is not installed. Installing jq..."
+           sudo apt-get update && sudo apt-get install -y jq
+          fi
           
           echo "Polling Jenkins queue to fetch build number..."
           BUILD_NUMBER="null"
