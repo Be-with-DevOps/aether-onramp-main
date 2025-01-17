@@ -64,27 +64,10 @@ jobs:
             echo "Failed to trigger Jenkins job. Queue URL not found."
             exit 1
           fi
-          echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
+          echo "Triggered Jenkins job successfully. Queue URL: $QUEUE_URL"
           echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
 
-      # Testing Jenkins Job Trigger
-      - name: Testing jenkins jobs
-        run: |
-          set -e
-          JENKINS_URL="http://10.176.27.188:8080/"
-          JOB_NAME="ABot-SDCORE-CI-Pipeline"
-          USERNAME="admin"
-          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
-          PARAMS="RUN_BASIC_ENV=true&RUN_FILE_OPS=false&RUN_NETWORK_TEST=false&RUN_BUILD_SIM=false"  # Example parameters
-          TEST_URL="${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?$PARAMS"
-          TEST_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN "$TEST_URL" -i)
-          HTTP_STATUS_TEST=$(echo "$TEST_RESPONSE" | head -n 1 | awk '{print $2}')
-          echo "Testing job response status: $HTTP_STATUS_TEST"
-          if [[ "$HTTP_STATUS_TEST" != "201" ]]; then
-            echo "Error triggering testing job. HTTP Status: $HTTP_STATUS_TEST"
-            exit 1
-          fi
-          echo "Testing job triggered successfully."
+     
           
       - name: Wait for Build to Start and Fetch Build Number
         id: fetch-build-number
