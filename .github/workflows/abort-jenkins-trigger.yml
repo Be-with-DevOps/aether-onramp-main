@@ -48,7 +48,7 @@ jobs:
           JENKINS_URL="http://10.176.27.188:8080/"
           JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
-          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          TOKEN="${{ secrets.JENKINS_TOKEN }}"
           SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }}
           PORT_ENCODED=${{ github.event.inputs.port }}
           BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
@@ -76,7 +76,7 @@ jobs:
           JENKINS_URL="http://10.176.27.188:8080/"
           JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
-          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          TOKEN="${{ secrets.JENKINS_TOKEN }}"
           QUEUE_URL="${{ env.queue_url }}"
           echo "Polling Jenkins queue to fetch build number..."
           BUILD_NUMBER="null"
@@ -111,7 +111,7 @@ jobs:
           JENKINS_URL="http://10.176.27.188:8080/"
           JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
-          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          TOKEN="${{ secrets.JENKINS_TOKEN }}"
           echo "Checking the status of the Jenkins job..."
           STATUS="null"
           for i in {1..60}; do
