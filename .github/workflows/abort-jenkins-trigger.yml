@@ -1,4 +1,4 @@
-name: GHCR - Install SD-Core 5G
+name: jenkins-trigger
 
 on:
   workflow_dispatch:
@@ -12,29 +12,29 @@ on:
         required: true
         default: "8080"
       branch_name:
-        description: 'The branch name to use'
+        description: 'Name of the Git branch to deploy from.'
         required: true
         default: 'main'
       smoke_test:
-        description: 'Run Smoke Test'
+        description: 'Run Smoke_Test'
         required: true
         default: 'true'
         type: boolean
       sanity_test:
-        description: 'Run Sanity Test'
+        description: 'Run Sanity_Test'
         required: true
         default: 'true'
         type: boolean
 
 jobs:
-  install:
+  trigger_jenkins_job :
     runs-on: [self-hosted]
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Set Up Variables
+      - name: Environment Variables
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "PORT=${{ github.event.inputs.port }}" >> $GITHUB_ENV
@@ -42,7 +42,7 @@ jobs:
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
 
-      - name: Trigger Jenkins Parameterized Job
+      - name: Trigger Jenkins Pipeline with Parameters
         run: |
           set -e
           JENKINS_URL="http://10.176.27.188:8080/"
@@ -69,7 +69,7 @@ jobs:
 
      
           
-      - name: Wait for Build to Start and Fetch Build Number
+      - name: Wait for Jenkins Job to Start and Retrieve Build Number
         id: fetch-build-number
         run: |
           set -e
@@ -102,7 +102,7 @@ jobs:
 
            echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
 
-      - name: Check Jenkins Job Status
+      - name: Monitor Jenkins Job Progress and Fetch Build Information
         id: jenkins-status
         env:
           BUILD_NUMBER: "${{ env.build_number }}" # Pass the build number from a previous step
