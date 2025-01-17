@@ -41,6 +41,7 @@ jobs:
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
+
       - name: Trigger Jenkins Parameterized Job
         run: |
           set -e
@@ -54,7 +55,6 @@ jobs:
           SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
           SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
           
-          
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
                 -i)
@@ -67,7 +67,7 @@ jobs:
           echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
           echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
 
-       # Testing Jenkins Job Trigger
+      # Testing Jenkins Job Trigger
       - name: Testing jenkins jobs
         run: |
           set -e
@@ -124,43 +124,46 @@ jobs:
         env:
           BUILD_NUMBER: "${{ env.build_number }}" # Pass the build number from a previous step
         run: |
-         set -e
-         JENKINS_URL="http://10.176.27.188:8080/"
-         JOB_NAME="ABot-SDCORE-CI-Pipeline"
-         USERNAME="admin"
-         TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
-         echo "Checking the status of the Jenkins job..."
-         STATUS="null"
-         for i in {1..60}; do
-           BUILD_INFO=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/api/json")
-           STATUS=$(echo $BUILD_INFO | jq -r '.result')
-           if [ "$STATUS" != "null" ]; then
-             break
-           fi
-           echo "Waiting for build to complete... Attempt: $i"
-           sleep 10
-         done
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="ABot-SDCORE-CI-Pipeline"
+          USERNAME="admin"
+          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          echo "Checking the status of the Jenkins job..."
+          STATUS="null"
+          for i in {1..60}; do
+            # Get build info using curl
+            BUILD_INFO=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/api/json")
+            
+            # Extract job status using grep and awk
+            STATUS=$(echo $BUILD_INFO | grep -o '"result":"[^"]*' | awk -F':' '{print $2}' | tr -d '"')
+            
+            if [ "$STATUS" != "null" ]; then
+              break
+            fi
+            
+            echo "Waiting for build to complete... Attempt: $i"
+            sleep 10
+          done
 
-         if [ "$STATUS" == "null" ]; then
-           echo "Failed to fetch the status of the Jenkins job after multiple attempts."
-           exit 1
-         fi
+          if [ "$STATUS" == "null" ]; then
+            echo "Failed to fetch the status of the Jenkins job after multiple attempts."
+            exit 1
+          fi
 
-  
-         if [ "$STATUS" == "FAILURE" ]; then
-          BUILD_LOG=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/consoleText" | tail -n 50)
-          echo "Build failed with error log: $BUILD_LOG"
-         fi
+          if [ "$STATUS" == "FAILURE" ]; then
+            BUILD_LOG=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/consoleText" | tail -n 50)
+            echo "Build failed with error log: $BUILD_LOG"
+          fi
 
-   
-         BUILD_TIMESTAMP=$(echo $BUILD_INFO | jq -r '.timestamp')
-         BUILD_DATE=$(date -d @"$(($BUILD_TIMESTAMP / 1000))" +'%Y-%m-%d %H:%M:%S' || date -r $(($BUILD_TIMESTAMP / 1000)) '+%Y-%m-%d %H:%M:%S')
+          # Extract timestamp using grep and awk
+          BUILD_TIMESTAMP=$(echo $BUILD_INFO | grep -o '"timestamp":[0-9]*' | awk -F':' '{print $2}')
+          BUILD_DATE=$(date -d @"$(($BUILD_TIMESTAMP / 1000))" +'%Y-%m-%d %H:%M:%S' || date -r $(($BUILD_TIMESTAMP / 1000)) '+%Y-%m-%d %H:%M:%S')
 
-         echo "Job Status: $STATUS"
-         echo "Build Number: $BUILD_NUMBER"
-         echo "Build Date: $BUILD_DATE"
+          echo "Job Status: $STATUS"
+          echo "Build Number: $BUILD_NUMBER"
+          echo "Build Date: $BUILD_DATE"
 
-    
-         echo "status=$STATUS" >> $GITHUB_ENV
-         echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
-         echo "build_date=$BUILD_DATE" >> $GITHUB_ENV
+          echo "status=$STATUS" >> $GITHUB_ENV
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
+          echo "build_date=$BUILD_DATE" >> $GITHUB_ENV
