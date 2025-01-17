@@ -64,91 +64,97 @@ jobs:
           fi
           echo "Triggered Jenkins job. Queue URL: $QUEUE_URL"
           echo "queue_url=$QUEUE_URL" >> $GITHUB_ENV
-      - name: Remove Conflicting Packages
+
+       # Testing Jenkins Job Trigger
+      - name: Testing jenkins jobs
         run: |
-          sudo apt-get remove --purge -y containerd
-          sudo apt-get autoremove -y
-          sudo apt-mark unhold containerd || true  # Ensure no held packages
-          sudo apt-get update -y
-      - name: Prerequisites environment
-        run: |
-           sudo ufw status
-           systemctl status systemd-networkd.service
-      - name: Install Prerequisites
-        run: |
-          if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          else
-            echo "Docker keyring already exists. Skipping creation."
-          fi
-          sudo chmod a+r /usr/share/keyrings/docker-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update -y
-          sudo apt-get install -y containerd.io
-          sudo apt-get install -y git curl make net-tools pipx python3-venv sshpass netplan.io iptables jq sed
-          pipx install --include-deps ansible || true  # Ignore if already installed
-          pipx ensurepath
-          make --version  # Verify make installation
-          echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
-          source $GITHUB_ENV  # Ensure new PATH is applied
-      - name: Debug PATH and Installed Tools
-        run: |
-          echo "Current PATH: $PATH"
-          which sed || echo "sed not found"
-          ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
-      - name: Installation of Aether OnRamp
-        run: |
-          git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
-          cd aether-onramp
-      - name: Set up network variables
-        run: |
-          echo "DATA_IFACE=ens18" >> $GITHUB_ENV
-          echo "AMF_IP=10.176.27.188" >> $GITHUB_ENV
-      - name: Update Configuration Files
-        shell: bash
-        run: |
-          # Replace content of line 2 with the new node1 IP and credentials
-          sed -i '2s/.*/node1 ansible_host=10.176.27.188 ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
-          sed -i '3s/^/#/' hosts.ini
-          sed -i '10s/^/#/' hosts.ini
-          # Verify the updated hosts.ini content
-          echo "Updated hosts.ini content:"
-          cat hosts.ini
-      - name: Set up Docker authentication for GHCR
-        run: |
-          sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
-      - name: Install Kubernetes
-        shell: bash
-        run: |
-          make aether-k8s-install  # Running from repo home
-      - name: Install SD-Core
-        run: |
-          make aether-5gc-install  # Running from repo home
-          kubectl get pods -n omec
-      # Validation step(whether the deployment and installation of the SD-Core 5G application on a specified server are successful)
-      - name: Validate Kubernetes Pods
-        run: |
-          kubectl get pods -n omec
-          kubectl wait --for=condition=Ready pods --all -n omec --timeout=300s
-          NOT_READY=$(kubectl get pods -n omec --no-headers | grep -v Running | wc -l)
-          if [ "$NOT_READY" -ne "0" ]; then
-            echo "Some pods are not running or ready."
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="ABot-SDCORE-CI-Pipeline"
+          USERNAME="admin"
+          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          PARAMS="RUN_BASIC_ENV=true&RUN_FILE_OPS=false&RUN_NETWORK_TEST=false&RUN_BUILD_SIM=false"  # Example parameters
+          TEST_URL="${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?$PARAMS"
+          TEST_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN "$TEST_URL" -i)
+          HTTP_STATUS_TEST=$(echo "$TEST_RESPONSE" | head -n 1 | awk '{print $2}')
+          echo "Testing job response status: $HTTP_STATUS_TEST"
+          if [[ "$HTTP_STATUS_TEST" != "201" ]]; then
+            echo "Error triggering testing job. HTTP Status: $HTTP_STATUS_TEST"
             exit 1
           fi
-          echo "All pods in the omec namespace are running and ready."
-      - name: Test Application Endpoints
+          echo "Testing job triggered successfully."
+          
+      - name: Wait for Build to Start and Fetch Build Number
+        id: fetch-build-number
         run: |
-          AMF_ENDPOINT="http://${{ github.event.inputs.server_ip }}:${{ github.event.inputs.port }}/amf"
-          curl -f $AMF_ENDPOINT || { echo "AMF endpoint is not accessible."; exit 1; }
-          echo "AMF endpoint is accessible."
-      - name: Inspect Pod Logs
-        run: |
-          PODS=$(kubectl get pods -n omec --no-headers -o custom-columns=":metadata.name")
-          for POD in $PODS; do
-            echo "Checking logs for pod: $POD"
-            kubectl logs $POD -n omec | grep -i error && { echo "Errors found in logs of pod $POD"; exit 1; }
+          set -e
+          JENKINS_URL="http://10.176.27.188:8080/"
+          JOB_NAME="ABot-SDCORE-CI-Pipeline"
+          USERNAME="admin"
+          TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+          QUEUE_URL="${{ env.queue_url }}"
+          
+          echo "Polling Jenkins queue to fetch build number..."
+          BUILD_NUMBER="null"
+          for i in {1..30}; do
+            BUILD_NUMBER=$(curl -s -u $USERNAME:$TOKEN "${QUEUE_URL}api/json" | jq -r '.executable.number')
+            if [ "$BUILD_NUMBER" != "null" ]; then
+              echo "Build number: $BUILD_NUMBER"
+              break
+            fi
+            echo "Waiting for build to be scheduled... Attempt: $i"
+            sleep 5
           done
-          echo "No errors found in pod logs."
-      - name: Final Status Check
+
+          if [ "$BUILD_NUMBER" == "null" ]; then
+            echo "Failed to retrieve the build number from Jenkins queue after multiple attempts."
+            exit 1
+          fi
+
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
+
+      - name: Check Jenkins Job Status
+        id: jenkins-status
+        env:
+          BUILD_NUMBER: "${{ env.build_number }}" # Pass the build number from a previous step
         run: |
-          echo "SD-Core 5G deployment and installation completed successfully!"
+         set -e
+         JENKINS_URL="http://10.176.27.188:8080/"
+         JOB_NAME="ABot-SDCORE-CI-Pipeline"
+         USERNAME="admin"
+         TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
+         echo "Checking the status of the Jenkins job..."
+         STATUS="null"
+         for i in {1..60}; do
+           BUILD_INFO=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/api/json")
+           STATUS=$(echo $BUILD_INFO | jq -r '.result')
+           if [ "$STATUS" != "null" ]; then
+             break
+           fi
+           echo "Waiting for build to complete... Attempt: $i"
+           sleep 10
+         done
+
+         if [ "$STATUS" == "null" ]; then
+           echo "Failed to fetch the status of the Jenkins job after multiple attempts."
+           exit 1
+         fi
+
+  
+         if [ "$STATUS" == "FAILURE" ]; then
+          BUILD_LOG=$(curl -s -u $USERNAME:$TOKEN "$JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/consoleText" | tail -n 50)
+          echo "Build failed with error log: $BUILD_LOG"
+         fi
+
+   
+         BUILD_TIMESTAMP=$(echo $BUILD_INFO | jq -r '.timestamp')
+         BUILD_DATE=$(date -d @"$(($BUILD_TIMESTAMP / 1000))" +'%Y-%m-%d %H:%M:%S' || date -r $(($BUILD_TIMESTAMP / 1000)) '+%Y-%m-%d %H:%M:%S')
+
+         echo "Job Status: $STATUS"
+         echo "Build Number: $BUILD_NUMBER"
+         echo "Build Date: $BUILD_DATE"
+
+    
+         echo "status=$STATUS" >> $GITHUB_ENV
+         echo "build_number=$BUILD_NUMBER" >> $GITHUB_ENV
+         echo "build_date=$BUILD_DATE" >> $GITHUB_ENV
