@@ -37,6 +37,7 @@ jobs:
       - name: Set Up Variables
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
+          echo "PORT=${{ github.event.inputs.port }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
           echo "SMOKE_TEST=${{ github.event.inputs.smoke_test }}" >> $GITHUB_ENV
           echo "SANITY_TEST=${{ github.event.inputs.sanity_test }}" >> $GITHUB_ENV
@@ -47,11 +48,13 @@ jobs:
           JOB_NAME="ABot-SDCORE-CI-Pipeline"
           USERNAME="admin"
           TOKEN="11836ad3b70cb3ab87b28836c59de4a3e7"
-          SERVER_IP_ENCODED=${{ github.event.inputs.server_ip }}
-          PORT_ENCODED=${{ github.event.inputs.port }}
-          BRANCH_NAME_ENCODED=${{ github.event.inputs.branch_name }}
-          SMOKE_TEST_ENCODED=${{ github.event.inputs.smoke_test }}
-          SANITY_TEST_ENCODED=${{ github.event.inputs.sanity_test }}
+          
+          # URL encode parameters
+          SERVER_IP_ENCODED=$(echo $SERVER_IP |jq -s -R -r @uri)
+          PORT_ENCODED=$(echo $PORT |jq -s -R -r @uri)
+          BRANCH_NAME_ENCODED=$(echo $BRANCH_NAME |jq -s -R -r @uri)
+          SMOKE_TEST_ENCODED=$(echo $SMOKE_TEST |jq -s -R -r @uri)
+          SANITY_TEST_ENCODED=$(echo $SANITY_TEST |jq -s -R -r @uri)
           
           TRIGGER_RESPONSE=$(curl -v -X POST -u $USERNAME:$TOKEN \
                "${JENKINS_URL}job/${JOB_NAME}/buildWithParameters?SERVER_IP=${SERVER_IP_ENCODED}&PORT=${PORT_ENCODED}&BRANCH_NAME=${BRANCH_NAME_ENCODED}&Smoke_Test=${SMOKE_TEST_ENCODED}&Sanity_Test=${SANITY_TEST_ENCODED}" \
