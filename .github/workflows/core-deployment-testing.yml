@@ -63,7 +63,7 @@ jobs:
           sed -i '2s/.*/node1 ansible_host=localhost ansible_user=ios5gn ansible_password=ios5gn ansible_sudo_pass=ios5gn/' hosts.ini
           sed -i '3s/^/#/' hosts.ini
           sed -i '10s/^/#/' hosts.ini
-          #sed -i '11s/^/#/' hosts.ini
+          sed -i '11s/^/#/' hosts.ini
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
