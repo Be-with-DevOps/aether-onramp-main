@@ -22,7 +22,6 @@ jobs:
 
       - name: Set Up Variables
         run: |
-          
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
       
@@ -51,16 +50,19 @@ jobs:
           echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
           source $GITHUB_ENV  # Ensure new PATH is applied
           docker --version  # Verify Docker installation
+          
       - name: Start Docker service
         run: |
           sudo systemctl start docker
           sudo systemctl enable docker
           sudo systemctl status docker
+          
       - name: Debug PATH and Installed Tools
         run: |
           echo "Current PATH: $PATH"
           which sed || echo "sed not found"
           ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
+          
       - name: Update Configuration Files
         shell: bash
         run: |
@@ -72,6 +74,7 @@ jobs:
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
+          
       - name: Set up Docker authentication for GHCR
         run: |
           if command -v docker &> /dev/null; then
@@ -80,10 +83,12 @@ jobs:
             echo "Docker is not installed or not found. Exiting."
             exit 1
           fi
+          
       - name: Install Kubernetes
         shell: bash
         run: |
           make aether-k8s-install  # Running from repo home
+          
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
