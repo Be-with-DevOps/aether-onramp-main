@@ -3,6 +3,10 @@
 export ROOT_DIR ?= $(PWD)
 export 5GC_ROOT_DIR ?= $(ROOT_DIR)
 
+# Set the locale environment to UTF-8
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
 export HOSTS_INI_FILE ?= $(5GC_ROOT_DIR)/hosts.ini
 
 export EXTRA_VARS ?= "@$(5GC_ROOT_DIR)/vars/main.yml"
