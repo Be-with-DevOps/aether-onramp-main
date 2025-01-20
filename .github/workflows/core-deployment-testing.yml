@@ -14,7 +14,7 @@ on:
 
 jobs:
   install:
-    runs-on: [self-hosted]  # Using our own self hosted runner
+    runs-on: [self-hosted]  # Using our own self-hosted runner
 
     steps:
       - name: Checkout Code
@@ -24,12 +24,14 @@ jobs:
         run: |
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
+
       - name: Remove Conflicting Packages
         run: |
           sudo apt-get remove --purge -y containerd
           sudo apt-get autoremove -y
           sudo apt-mark unhold containerd || true  # Ensure no held packages
           sudo apt-get update -y
+
       - name: Install Prerequisites
         run: |
           if [ ! -f /usr/share/keyrings/docker-archive-keyring.gpg ]; then
@@ -40,19 +42,27 @@ jobs:
           sudo chmod a+r /usr/share/keyrings/docker-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
           sudo apt-get update -y
-          sudo apt-get install -y containerd.io
+          sudo apt-get install -y containerd.io docker-ce docker-ce-cli
           sudo apt-get install -y git curl make net-tools pipx python3-venv sshpass netplan.io iptables jq sed
           pipx install --include-deps ansible || true  # Ignore if already installed
           pipx ensurepath
           make --version  # Verify make installation
           echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
           source $GITHUB_ENV  # Ensure new PATH is applied
+          docker --version  # Verify Docker installation
+
+      - name: Start Docker service
+        run: |
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo systemctl status docker
 
       - name: Debug PATH and Installed Tools
         run: |
           echo "Current PATH: $PATH"
           which sed || echo "sed not found"
           ls -l /usr/bin/sed || echo "/usr/bin/sed not found"
+
       - name: Update Configuration Files
         shell: bash
         run: |
@@ -64,17 +74,22 @@ jobs:
           # Verify the updated hosts.ini content
           echo "Updated hosts.ini content:"
           cat hosts.ini
+
       - name: Set up Docker authentication for GHCR
         run: |
-          sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
-          
+          if command -v docker &> /dev/null; then
+            sudo docker login ghcr.io -u "${{ secrets.GHCRUSER }}" --password-stdin <<< "${{ secrets.GHCRPASS }}"
+          else
+            echo "Docker is not installed or not found. Exiting."
+            exit 1
+          fi
+
       - name: Install Kubernetes
-        shell: bash 
+        shell: bash
         run: |
           make aether-k8s-install  # Running from repo home
-        
+
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
           kubectl get pods -n omec
-    
