@@ -1,5 +1,3 @@
-#### Variables ####
-
 export ROOT_DIR ?= $(PWD)
 export 5GC_ROOT_DIR ?= $(ROOT_DIR)
 
@@ -8,11 +6,9 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
 export HOSTS_INI_FILE ?= $(5GC_ROOT_DIR)/hosts.ini
-
 export EXTRA_VARS ?= "@$(5GC_ROOT_DIR)/vars/main.yml"
 
 #### a. Debugging ####
-
 5gc-debug:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/debug.yml \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
@@ -26,9 +22,10 @@ export EXTRA_VARS ?= "@$(5GC_ROOT_DIR)/vars/main.yml"
 5gc-uninstall: 5gc-core-uninstall 5gc-router-uninstall
 
 #### c. Provision router ####
-5gc-router-install:
+5gc-router-install: check-eth0-network
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/router.yml --tags install \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
+
 5gc-router-uninstall:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/router.yml --tags uninstall \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
@@ -37,16 +34,29 @@ export EXTRA_VARS ?= "@$(5GC_ROOT_DIR)/vars/main.yml"
 5gc-core-install:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/core.yml --tags install \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
+
 5gc-core-uninstall:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/core.yml --tags uninstall \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
-5gc-core-reset: 5gc-core-uninstall 5gc-core-install
 
+5gc-core-reset: 5gc-core-uninstall 5gc-core-install
 
 #### e. Provision Multiple UPF ###
 5gc-upf-install:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/upf.yml --tags install \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
+
 5gc-upf-uninstall:
 	ansible-playbook -i $(HOSTS_INI_FILE) $(5GC_ROOT_DIR)/upf.yml --tags uninstall \
 		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
+
+#### f. Check eth0.network file ####
+check-eth0-network:
+	@echo "Checking for eth0.network file..."
+	@result=$(find /*/systemd/network -maxdepth 1 -not -type d -name '*eth0.network' -print -quit) ; \
+	if [ -n "$$result" ]; then \
+		echo "Found eth0.network file: $$(basename $$result)" ; \
+	else \
+		echo "No eth0.network file found" ; \
+		exit 1 ; \
+	fi
