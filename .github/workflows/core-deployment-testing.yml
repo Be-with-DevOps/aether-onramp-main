@@ -41,6 +41,7 @@ jobs:
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
           sudo apt-get update -y
           sudo apt-get install -y containerd.io
+          docker --version
           sudo apt-get install -y git curl make net-tools pipx python3-venv sshpass netplan.io iptables jq sed
           pipx install --include-deps ansible || true  # Ignore if already installed
           pipx ensurepath
