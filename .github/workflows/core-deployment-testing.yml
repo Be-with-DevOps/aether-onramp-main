@@ -22,8 +22,7 @@ jobs:
 
       - name: Set Up Variables
         run: |
-          echo "ROOT_DIR=$(pwd)" >> $GITHUB_ENV
-          echo "AETHER_ROOT_DIR=$(pwd)" >> $GITHUB_ENV
+          
           echo "SERVER_IP=${{ github.event.inputs.server_ip }}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
 
