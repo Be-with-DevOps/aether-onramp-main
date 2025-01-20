@@ -14,7 +14,7 @@ on:
 
 jobs:
   install:
-    runs-on: [self-hosted]  # Using our own self-hosted runner
+    runs-on: ubuntu-latest  # Using our own self-hosted runner
 
     steps:
       - name: Checkout Code
