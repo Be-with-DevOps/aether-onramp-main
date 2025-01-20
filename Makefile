@@ -32,6 +32,12 @@ aether-pingall:
 
 #### Provision AETHER Components for 5G ####
 aether-k8s-install: k8s-install
+	# Ensure the correct locale before running Ansible
+	export LC_ALL=en_US.UTF-8; \
+	export LANG=en_US.UTF-8; \
+	ansible-playbook -i $(HOSTS_INI_FILE) $(AETHER_ROOT_DIR)/deps/k8s/rke2.yml --tags install \
+		--extra-vars "ROOT_DIR=$(ROOT_DIR)" --extra-vars $(EXTRA_VARS)
+
 aether-k8s-uninstall: k8s-uninstall
 aether-5gc-install: 5gc-install
 aether-5gc-uninstall: 5gc-uninstall
@@ -116,7 +122,6 @@ aether-ueransim-run: ueransim-run
 # 	ueransim-install
 # 	ueransim-run
 # 	ueransim-uninstall
-
 
 #include at the end so rules are not overwritten
 include $(K8S_ROOT_DIR)/Makefile
