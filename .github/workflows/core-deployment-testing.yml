@@ -45,6 +45,7 @@ jobs:
           pipx install --include-deps ansible || true  # Ignore if already installed
           pipx ensurepath
           make --version  # Verify make installation
+          docker --version
           echo "PATH=$PATH:/usr/bin:$HOME/.local/bin" >> $GITHUB_ENV
           source $GITHUB_ENV  # Ensure new PATH is applied
       - name: Debug PATH and Installed Tools
