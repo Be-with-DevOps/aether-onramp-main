@@ -98,6 +98,11 @@ jobs:
         run: |
           make aether-k8s-install  # Running from repo home
 
+      - name: Set up network variables
+        run: |
+          echo "DATA_IFACE=ens18" >> $GITHUB_ENV
+          echo "AMF_IP=10.176.27.143" >> $GITHUB_ENV
+
       - name: Install SD-Core
         run: |
           make aether-5gc-install  # Running from repo home
